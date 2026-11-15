@@ -1,0 +1,199 @@
+@baseUrl = http://localhost:5080
+@tournamentId = 00000000-0000-0000-0000-000000000001
+@teamId = 00000000-0000-0000-0000-000000000002
+@seasonId = 00000000-0000-0000-0000-000000000003
+@sourceTournamentId = 00000000-0000-0000-0000-000000000004
+@sourceSeasonId = 00000000-0000-0000-0000-000000000005
+@playerId = 00000000-0000-0000-0000-000000000006
+@auctionId = 00000000-0000-0000-0000-000000000007
+
+### Get a CSRF request token before account actions
+GET {{baseUrl}}/api/v1/auth/csrf
+
+### Register an organizer (include the returned CSRF token and cookie)
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: application/json
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "displayName": "Tournament Organizer",
+  "email": "organizer@example.com",
+  "password": "CricketAuction!2026"
+}
+
+### Get the signed-in account
+GET {{baseUrl}}/api/v1/auth/me
+
+### Log out (include the CSRF token and session cookie)
+POST {{baseUrl}}/api/v1/auth/logout
+
+### List this organizer's tournaments, teams and players
+GET {{baseUrl}}/api/v1/tournaments/
+
+### Read the authenticated member's authoritative auction snapshot
+GET {{baseUrl}}/api/v1/auctions/{{auctionId}}/state
+
+### Start a scheduled auction (include the CSRF token and session cookie)
+POST {{baseUrl}}/api/v1/auctions/{{auctionId}}/start
+X-CSRF-TOKEN: {{csrfToken}}
+
+### Submit an idempotent captain bid (reuse clientRequestId for a retry)
+POST {{baseUrl}}/api/v1/auctions/{{auctionId}}/bids
+Content-Type: application/json
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "teamId": "{{teamId}}",
+  "amount": 12000,
+  "clientRequestId": "1a6b16e6-0434-4ce7-a80e-122e26538ce7",
+  "expectedRevision": 4
+}
+
+### Confirm the auctioneer-reviewed sale revision
+POST {{baseUrl}}/api/v1/auctions/{{auctionId}}/sold
+Content-Type: application/json
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "expectedRevision": 5
+}
+
+### Import a legacy browser workspace atomically (only when the account has no saved tournaments)
+POST {{baseUrl}}/api/v1/tournaments/import
+Content-Type: application/json
+
+{
+  "tournament": {
+    "name": "Legacy City Cup",
+    "season": "2026",
+    "venue": "Pune"
+  },
+  "teams": [
+    {
+      "legacyId": "old-team-1",
+      "name": "Pune Panthers",
+      "shortName": "PUN",
+      "captain": "Captain Name",
+      "initialPurse": 100000,
+      "purse": 70000,
+      "color": "#FF6A00"
+    }
+  ],
+  "players": [
+    {
+      "legacyId": "old-player-1",
+      "name": "Player Name",
+      "city": "Pune",
+      "role": "Batter",
+      "basePrice": 10000,
+      "status": "Sold",
+      "teamLegacyId": "old-team-1",
+      "soldPrice": 30000
+    }
+  ]
+}
+
+### Create a tournament
+POST {{baseUrl}}/api/v1/tournaments/
+Content-Type: application/json
+
+{
+  "name": "City Cricket Cup",
+  "season": "2026",
+  "venue": "Pune",
+  "defaultTeamPurse": 200000
+}
+
+### Update a tournament
+PUT {{baseUrl}}/api/v1/tournaments/{{tournamentId}}
+Content-Type: application/json
+
+{
+  "name": "City Cricket Cup",
+  "season": "2026",
+  "venue": "Pune",
+  "defaultTeamPurse": 200000
+}
+
+### Add a team
+POST {{baseUrl}}/api/v1/tournaments/{{tournamentId}}/teams
+Content-Type: application/json
+
+{
+  "name": "Pune Panthers",
+  "shortName": "PUN",
+  "displayName": "Panthers",
+  "captain": "Captain Name"
+}
+
+### Create another season inside the league
+POST {{baseUrl}}/api/v1/tournaments/{{tournamentId}}/seasons
+Content-Type: application/json
+
+{
+  "name": "2027",
+  "startDate": "2027-01-01",
+  "endDate": "2027-12-31",
+  "venue": "Pune",
+  "status": "Upcoming"
+}
+
+### Add a player
+POST {{baseUrl}}/api/v1/tournaments/{{tournamentId}}/players
+Content-Type: application/json
+
+{
+  "name": "Player Name",
+  "city": "Pune",
+  "email": "player@example.com",
+  "nationality": "India",
+  "dateOfBirth": "2000-01-01",
+  "role": "Batter",
+  "basePrice": 10000
+}
+
+### Copy selected teams and players to a season as a fresh roster
+POST {{baseUrl}}/api/v1/tournaments/{{tournamentId}}/seasons/{{seasonId}}/copy-roster
+Content-Type: application/json
+
+{
+  "sourceTournamentId": "{{sourceTournamentId}}",
+  "sourceSeasonId": "{{sourceSeasonId}}",
+  "teamIds": ["{{teamId}}"],
+  "playerIds": ["{{playerId}}"]
+}
+
+### Add a purchased player to a team (the available purse is checked and deducted)
+POST {{baseUrl}}/api/v1/tournaments/{{tournamentId}}/players
+Content-Type: application/json
+
+{
+  "name": "Purchased Player",
+  "city": "Pune",
+  "role": "Batter",
+  "basePrice": 10000,
+  "status": "Sold",
+  "teamId": "{{teamId}}",
+  "soldPrice": 30000
+}
+
+### Delete a tournament (also deletes related teams and players)
+DELETE {{baseUrl}}/api/v1/tournaments/{{tournamentId}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+### Delete an empty inactive season (keep at least one season per league)
+DELETE {{baseUrl}}/api/v1/tournaments/{{tournamentId}}/seasons/{{seasonId}}
+X-CSRF-TOKEN: {{csrfToken}}
+
+### Sign in (include a newly issued CSRF token and cookie)
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+X-CSRF-TOKEN: {{csrfToken}}
+
+{
+  "email": "organizer@example.com",
+  "password": "CricketAuction!2026"
+}
+
+### Get read-only public auction display state (no authentication required)
+GET {{baseUrl}}/api/v1/public/auctions/{{auctionId}}
